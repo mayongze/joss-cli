@@ -91,6 +91,9 @@ $ go build && go install
 ##### Examples
 
 ```bash
-
+./joss put /root/file1 /root/file2 oss://bucket1
+#文件写入成功
+./joss put /root/../export/* oss://bucket1
+#文件写入成功
 ```
 
