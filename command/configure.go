@@ -15,7 +15,7 @@ type Account struct {
 	SecretKey string "json:\"secret_key\""
 }
 
-var(
+var (
 	account Account
 )
 
@@ -37,58 +37,60 @@ func NewAccountCommand() *cobra.Command {
 	bc := &cobra.Command{
 		Use:   "account --ak=***** --sk=*****",
 		Short: "key operation command",
-		Run: acountCommandFunc,
+		Run:   acountCommandFunc,
 	}
-	bc.Flags().StringVar(&account.AccessKey,"ak","","accessKey.")
-	bc.Flags().StringVar(&account.SecretKey,"sk","","secretKey.")
+	bc.Flags().StringVar(&account.AccessKey, "ak", "", "accessKey.")
+	bc.Flags().StringVar(&account.SecretKey, "sk", "", "secretKey.")
 	return bc
 }
 
-func acountCommandFunc (cmd *cobra.Command, args []string){
+func acountCommandFunc(cmd *cobra.Command, args []string) {
 	//为空默认
-	if account.AccessKey == "" || account.SecretKey== ""{
+	if account.AccessKey == "" || account.SecretKey == "" {
 		account, err := GetAcount()
-		if err != nil{
-			ExitWithError(ExitError,err)
+		if err != nil {
+			ExitWithError(ExitError, err)
 		}
-		fmt.Fprintf(os.Stdout,"ak=%s\nsk=%s\n",account.AccessKey,account.SecretKey)
-	}else{
-		err := SetAccount(account.AccessKey,account.SecretKey)
-		if err != nil{
-			ExitWithError(ExitError,err)
+		fmt.Fprintf(os.Stdout, "ak=%s\nsk=%s\n", account.AccessKey, account.SecretKey)
+	} else {
+		err := SetAccount(account.AccessKey, account.SecretKey)
+		if err != nil {
+			ExitWithError(ExitError, err)
 		}
-		fmt.Fprintf(os.Stdout,"OK")
+		fmt.Fprintf(os.Stdout, "OK")
 	}
 }
 
 //配置文件>环境变量
-func GetAcount() (account Account,err error){
+func GetAcount() (account Account, err error) {
 	//获取失败从环境变量获取
 	defer func() {
-		if err != nil{
+		if err != nil {
 			account.AccessKey = os.Getenv("ACCESSKEY")
 			account.SecretKey = os.Getenv("SECRETKEY")
 			if account.AccessKey == "" || account.SecretKey == "" {
 				err = fmt.Errorf("key not found")
+			} else {
+				err = nil
 			}
 		}
 	}()
 	//获取用户路径
 	curUser, err := user.Current()
-	if  err != nil {
-		return account,fmt.Errorf("Error: get current user error,%s \n",err)
+	if err != nil {
+		return account, fmt.Errorf("Error: get current user error,%s \n", err)
 	}
 	storageDir := filepath.Join(curUser.HomeDir, ".jdcloud")
 	accountFname := filepath.Join(storageDir, "account.json")
 	accountFh, openErr := os.Open(accountFname)
 	if openErr != nil {
-		return account,fmt.Errorf("Open account file error, %s",openErr)
+		return account, fmt.Errorf("Open account file error, %s", openErr)
 	}
 	defer accountFh.Close()
 
 	accountBytes, readErr := ioutil.ReadAll(accountFh)
 	if readErr != nil {
-		return account,fmt.Errorf("Read account file error, %s",readErr)
+		return account, fmt.Errorf("Read account file error, %s", readErr)
 	}
 
 	if umError := json.Unmarshal(accountBytes, &account); umError != nil {
@@ -98,8 +100,7 @@ func GetAcount() (account Account,err error){
 	return account, nil
 }
 
-
-func SetAccount(accessKey,secretKey string) (err error) {
+func SetAccount(accessKey, secretKey string) (err error) {
 
 	if accessKey == "" || secretKey == "" {
 		fmt.Errorf("accesskey secretkey cannot be empty.")
@@ -107,8 +108,8 @@ func SetAccount(accessKey,secretKey string) (err error) {
 
 	//获取用户路径
 	curUser, err := user.Current()
-	if  err != nil {
-		return fmt.Errorf("Error: get current user error,%s \n",err)
+	if err != nil {
+		return fmt.Errorf("Error: get current user error,%s \n", err)
 	}
 	storageDir := filepath.Join(curUser.HomeDir, ".jdcloud")
 	if _, sErr := os.Stat(storageDir); sErr != nil {
@@ -126,7 +127,7 @@ func SetAccount(accessKey,secretKey string) (err error) {
 	}
 	defer accountFh.Close()
 
-	account := Account{AccessKey:accessKey,SecretKey:secretKey}
+	account := Account{AccessKey: accessKey, SecretKey: secretKey}
 	jsonStr, err := account.ToJson()
 	if err != nil {
 		return

@@ -6,8 +6,9 @@ import (
 )
 
 var (
-
-	Version           = "1.0.0+git"
+	Version = "1.0.0+git"
+	// We want to replace this variable at build time with "-ldflags -X main.GitSHA=xxx", where const is not supported.
+	GitSHA = ""
 )
 
 func NewVersionCommand() *cobra.Command {
@@ -19,6 +20,5 @@ func NewVersionCommand() *cobra.Command {
 }
 
 func versionCommandFunc(cmd *cobra.Command, args []string) {
-	fmt.Println("joss-cli version:", Version)
+	fmt.Printf("joss-cli version:%s sha:%s", Version, GitSHA)
 }
-
