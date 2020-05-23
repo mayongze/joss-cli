@@ -6,7 +6,6 @@ import (
 	"testing"
 )
 
-
 func executeCommandC(root *cobra.Command, args ...string) (c *cobra.Command, output string, err error) {
 	buf := new(bytes.Buffer)
 	root.SetOutput(buf)
@@ -21,7 +20,7 @@ func TestNewObjectPutCommand(t *testing.T) {
 	output := new(bytes.Buffer)
 	path := "D:\\xmind-8-update8-windows.zip"
 
-	testCmd.SetArgs([]string{"put",path,"oss://joss-test"})
+	testCmd.SetArgs([]string{"put", path, "oss://joss-test"})
 	testCmd.SetOutput(output)
 	testCmd.AddCommand(NewObjectPutCommand())
 
@@ -32,11 +31,11 @@ func TestNewObjectPutCommand(t *testing.T) {
 }
 
 func TestGetFileObject(t *testing.T) {
-	path := []string{"../case/../command","../case/../../../../"}
+	path := []string{"../case/../command", "../case/../../../../"}
 	//../command ../../../../
-	fileObj,err := getFileObject(path)
+	fileObj, err := getFileObject(path)
 	if err != nil {
-		t.Error("getFileObject error:%v",err)
+		t.Error("getFileObject error:%v", err)
 
 	}
 	t.Log(fileObj)

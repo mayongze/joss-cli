@@ -8,7 +8,7 @@ import (
 func TestNewBucketObjectListCommand(t *testing.T) {
 	output := new(bytes.Buffer)
 
-	testCmd.SetArgs([]string{"ls","oss://joss-test","-l"})
+	testCmd.SetArgs([]string{"ls", "oss://joss-test", "-l"})
 	testCmd.SetOutput(output)
 	testCmd.AddCommand(NewBucketObjectListCommand())
 

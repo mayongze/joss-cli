@@ -8,12 +8,12 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/spf13/cobra"
 	"strings"
-	_"time"
+	_ "time"
 )
 
-var(
+var (
 	ShellRootPath string
-	AccountFile string
+	AccountFile   string
 )
 
 type GlobalFlags struct {
@@ -35,7 +35,7 @@ func NewS3Client(cmd *cobra.Command) (*s3.S3, *session.Session) {
 	if accessKey == "" || secretKey == "" {
 		account, err := GetAcount()
 		if err != nil {
-			ExitWithError(ExitError,fmt.Errorf("Access key error. %v",err))
+			ExitWithError(ExitError, fmt.Errorf("Access key error. %v", err))
 		}
 		accessKey = account.AccessKey
 		secretKey = account.SecretKey
@@ -43,7 +43,7 @@ func NewS3Client(cmd *cobra.Command) (*s3.S3, *session.Session) {
 	return initS3Client(accessKey, secretKey, endpoint)
 }
 
-func initS3Client(accessKey, secretKey, endpoint string) (*s3.S3,*session.Session) {
+func initS3Client(accessKey, secretKey, endpoint string) (*s3.S3, *session.Session) {
 	if !strings.HasPrefix(endpoint, "http://") {
 		endpoint = "http://" + endpoint
 	}
@@ -58,5 +58,5 @@ func initS3Client(accessKey, secretKey, endpoint string) (*s3.S3,*session.Sessio
 		Profile: "jdcloud",
 	}))
 	svc := s3.New(sess)
-	return svc,sess
+	return svc, sess
 }

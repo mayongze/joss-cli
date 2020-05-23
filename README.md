@@ -6,14 +6,11 @@
 ## 安装
 
 ```
-$ go get github.com/spf13/cobra
-$ go get github.com/aws/aws-sdk-go/service/s3
-$ go get github.com/aws/aws-sdk-go/aws
 $ go get github.com/mayongze/joss-cli
 $ cd $GOPATH/src/github.com/mayongze/joss-cli
-$ go build && go install
+$ make build
+$ cd bin
 ```
-
 
 
 ## 使用方法
