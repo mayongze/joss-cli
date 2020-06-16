@@ -1,31 +1,46 @@
 package command
 
 import (
-	"context"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/mayongze/joss-cli/pkg/joss"
+	"github.com/mayongze/joss-cli/pkg/joss/types"
 	"github.com/spf13/cobra"
-	"io"
-	"os"
-	"path"
-	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"time"
 )
 
 var (
 	//上传超时时间单位秒
-	uploadTmeout time.Duration
+	uploadTimeoutFlag string
+	// uploadTimeout	time.Duration
 	//最小分片大小
 	partSize int64
 	//最大上传并发数
 	concurrency int
 )
+
+func init() {
+	RootCmd.AddCommand(
+		// ls oss://<bucket>/prefix
+		NewObjectListCommand(),
+		// put file file... oss://<bucket>/prefix
+		NewObjectPutCommand(),
+	)
+}
+
+//获取bucket 内的文件
+func NewObjectListCommand() *cobra.Command {
+	c := &cobra.Command{
+		Use:     "ls oss://BUCKET[/PREFIX]",
+		Aliases: []string{"list", "ll"},
+		Short:   "获取oss里的列表信息,如需获取对象信息需要使用oss://指定bucket",
+
+		Run: ossListCommandFunc,
+	}
+	c.Flags().BoolP("long", "l", false, "显示详细信息.")
+	c.Flags().Int64("max-keys", 0, "keys的最大输出数目.")
+	return c
+}
 
 func NewObjectPutCommand() *cobra.Command {
 	bc := &cobra.Command{
@@ -34,255 +49,128 @@ func NewObjectPutCommand() *cobra.Command {
 
 		Run: objectPutCommandFunc,
 	}
-	bc.Flags().DurationVar(&uploadTmeout, "upload-timeout", 0, "Upload timeout. unit:s")
+	bc.Flags().StringVar(&uploadTimeoutFlag, "upload-timeout", "5s", "Upload timeout.")
 	bc.Flags().Int64Var(&partSize, "part-size", 50, "split upload size. unit:mb")
 	bc.Flags().IntVarP(&concurrency, "concurrency", "c", 3, "oncurrent requests.")
+
+	bc.Flags().BoolVarP(&Force, "force", "f", false, "force updates")
+	bc.Flags().BoolVarP(&Recursive, "recursive", "r", false, "Recursive upload, download or removal.")
 	return bc
+}
+
+//获取对象存储列表
+func ossListCommandFunc(cmd *cobra.Command, args []string) {
+	//无附加参数获取bucket 列表
+	if len(args) == 0 {
+		bucketListCommandFunc(cmd, args)
+		return
+	}
+	//解析参数  oss://bucket/aae/f
+	param := args[0]
+	bucket := ""
+	prefix := ""
+	if strings.HasPrefix(param, "oss://") {
+		idx := strings.LastIndex(param[6:], "/")
+		if idx <= 0 {
+			bucket = param[6:]
+		} else {
+			bucket = param[6:idx]
+			prefix = param[6+idx:]
+		}
+	} else {
+		ExitWithError(ExitError, fmt.Errorf("bucket格式错误. Format: ls oss://bucket[/prefix]"))
+	}
+	if bucket == "" {
+		ExitWithError(ExitError, fmt.Errorf("bucket不能为空. Format: ls oss://bucket[/prefix]"))
+	}
+	maxKeys, _ := cmd.Flags().GetInt64("max-keys")
+	resp, err := joss.New(Endpoint, AccessKey, SecretKey, JossType).
+		Bucket(bucket).ListObject(prefix, types.WithMaxKeys(maxKeys))
+	if err != nil {
+		ExitWithError(ExitError, err)
+	}
+
+	longMode, _ := cmd.Flags().GetBool("long")
+	// 全部按行输出
+	longMode = true
+	if longMode || cmd.CalledAs() == "ll" {
+		fmt.Printf("total %d\n", len(resp.Objects))
+		for _, obj := range resp.Objects {
+			//|s|%s %3d %s|s|%8s|%s %-7s %s %-3s
+			// b kb mb gb
+			fmt.Printf("%9s\t%6s\t%s\n",
+				ByteCountBinary(obj.Size),
+				obj.LastModified.Format("2006-01-02 15:04"),
+				obj.Key)
+		}
+	} else {
+		for _, obj := range resp.Objects {
+			fmt.Printf("%-6s\t", obj.Key)
+		}
+		fmt.Print("\n")
+	}
 }
 
 func objectPutCommandFunc(cmd *cobra.Command, args []string) {
 	//解析参数
 	bucket, objPrefix, files := getPutOp(args)
-	s3Client, sess := NewS3Client(cmd)
 
-	input := &s3.HeadBucketInput{
-		Bucket: aws.String(bucket),
-	}
-	//是否存在bucket
-	_, err := s3Client.HeadBucket(input)
-	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			case "NotFound":
-				exitErrorf("bucket %s does not exist", bucket)
-			}
-		}
-	}
-
-	uploader := s3manager.NewUploader(sess)
-
-	fileObjList, err := getFileObject(files)
+	// 批量上传进度条咋搞
+	jcli := joss.New(Endpoint, AccessKey, SecretKey, JossType)
+	// 	// 文件递归 -r
+	filesObj, err := getFileObject(files, Recursive)
 	if err != nil {
 		ExitWithError(ExitError, err)
 	}
-	for _, fileObj := range fileObjList {
-		key := objPrefix + fileObj.Key
-		err = writeFile(fileObj, bucket, key, uploader)
-		if err != nil {
+	// 判断key是否存在
+	if !Force {
+		f := filesObj[0]
+		p := ""
+		if strings.HasSuffix(objPrefix, "/") {
+			p = fmt.Sprint(objPrefix, f.Key)
+		} else if Recursive {
+			p = fmt.Sprint(objPrefix, "/", f.Key)
+		}
+		resp, _ := jcli.Bucket(bucket).ListObject(p)
+		if len(resp.Objects) != 0 || len(resp.Prefix) != 0 {
+			ExitWithError(ExitError, fmt.Errorf("The target file already exists, try using -f flag."))
+		}
+	}
+
+	p := fmt.Sprint(bucket, "/", objPrefix)
+	for i, v := range filesObj {
+		// 有/则加文件名 或者没/但是是有递归参数
+		if strings.HasSuffix(p, "/") {
+			p = fmt.Sprint(p, v.Key)
+		} else if Recursive {
+			p = fmt.Sprint(p, "/", v.Key)
+		}
+		fmt.Printf("upload: '%s' -> 'oss://%s'  [%d of %d]\n", v.Key, p, i+1, len(filesObj))
+		// 处理进度条
+		start := time.Now()
+		t := start
+		var preConsumed int64 = 0
+		var done = ""
+		// p <- josstest/aaaz/
+		if err = jcli.PutObjectFromFile(p, v.Path, types.WithProgress(func(totalBytes int64, consumedBytes int64) {
+			if consumedBytes >= totalBytes {
+				done = "  done\n"
+			}
+			now := time.Now()
+			interval := now.Sub(t).Seconds()
+			t = time.Now()
+
+			diff := float64(consumedBytes - preConsumed)
+			speed := int64(diff / interval)
+			speedHuman := ByteCountBinary(speed)
+			preConsumed = consumedBytes
+			// 589588 of 589588   100% in    0s     2.01 MB/s  done
+			fmt.Printf("\r%9d of %d\t%.2f%% in\t%s\t%s/s%s",
+				consumedBytes, totalBytes, float32(consumedBytes*100)/float32(totalBytes),
+				((now.Sub(start) / time.Second) * time.Second).String(), speedHuman, done)
+		})); err != nil {
 			ExitWithError(ExitError, err)
 		}
-		fmt.Println("文件写入成功: ", fileObj.Key)
 	}
-
-	//fmt.Println(bucket)
-}
-
-type fileObject struct {
-	Key  string
-	Path string
-	File os.FileInfo
-}
-
-//遍历文件夹
-func getFileObject(pathStr []string) (result []*fileObject, err error) {
-	for _, p := range pathStr {
-		//暂不支持windows下*号请求 */sss  *  /a/b/*  /a/b/sss*  aa/*b/dd b*
-		// aa/ *b/../dd/ddf*ff   *b/../*/ddd   *b/../*/cc*
-
-		//简化路径
-		p = path.Clean(p)
-		if strings.LastIndex(p, "*") != -1 {
-			return nil, fmt.Errorf("Directory cannot appear '*'.\n")
-		}
-		file_info, err := os.Stat(p)
-		if err != nil {
-			ExitWithError(ExitError, fmt.Errorf("os.Stat failed: %q, %v\n", p, err))
-		}
-		if file_info.IsDir() { //文件夹
-			basePath := file_info.Name()
-			err = filepath.Walk(p, func(pathStr string, f_info os.FileInfo, err error) error {
-				if err != nil || f_info == nil {
-					return err
-				}
-				if f_info.IsDir() {
-					return nil
-				}
-				pathStr = strings.Replace(pathStr, "\\", "/", -1)
-				f := &fileObject{File: f_info, Path: p}
-				pathStr = pathStr[len(p):]
-				if strings.HasSuffix(p, "/") {
-					pathStr = "/" + pathStr
-				}
-				if basePath[0] == '.' {
-					f.Key = pathStr[1:]
-				} else {
-					f.Key = basePath + pathStr
-				}
-				result = append(result, f)
-				return nil
-			})
-		} else { //文件
-			f := &fileObject{File: file_info, Key: file_info.Name(), Path: p}
-			result = append(result, f)
-		}
-
-	}
-	return
-}
-
-//写入文件
-func writeFile(f_info *fileObject, bucket, key string, uploader *s3manager.Uploader) (err error) {
-	size := f_info.File.Size()
-	f, err := os.Open(f_info.Path)
-	defer f.Close()
-	if err != nil {
-		return fmt.Errorf("failed to open file  %q, %v\n", f_info.Path, err)
-	}
-	//配合进度条的实现
-	reader := &CustomReader{
-		fp:     f,
-		f_info: f_info,
-		size:   size,
-	}
-	_, err = uploadWithSmr(reader, size, bucket, key, uploader)
-	if err == nil {
-		fmt.Fprintf(os.Stdout, "\n")
-	}
-	return err
-}
-
-type CustomReader struct {
-	fp     *os.File
-	f_info *fileObject
-	size   int64
-	read   int64
-}
-
-func (r *CustomReader) Read(p []byte) (int, error) {
-	return r.fp.Read(p)
-}
-
-func (r *CustomReader) ReadAt(p []byte, off int64) (int, error) {
-	n, err := r.fp.ReadAt(p, off)
-	if err != nil {
-		return n, err
-	}
-	// Got the length have read( or means has uploaded), and you can construct your message
-	atomic.AddInt64(&r.read, int64(n))
-	// I have no idea why the read length need to be div 2,
-	// maybe the request read once when Sign and actually send call ReadAt again
-	// It works for me
-	//log.Printf("Current upload file：%s",r.f_info.Key)
-
-	fmt.Fprintf(os.Stdout, "\rTransfer Data, TotalBytes %d, ConsumedBytes: %d, progress:%d%%",
-		r.size, r.read/2, int(float32(r.read*100/2)/float32(r.size)))
-	return n, err
-}
-
-func (r *CustomReader) Seek(offset int64, whence int) (int64, error) {
-	return r.fp.Seek(offset, whence)
-}
-
-//通过s3manager上传
-func uploadWithSmr(reader io.Reader, size int64, bucket, key string, uploader *s3manager.Uploader) (*s3manager.UploadOutput, error) {
-	//单位换成mb
-	partLen := partSize * 1024 * 1024
-	if size >= 5*1024*1024*1024 {
-		return nil, fmt.Errorf("file maximum support 5gb. name=%s")
-	}
-	//最高支持10000个分片
-	if size/10000 > partLen {
-		partLen = size / 100
-	}
-	input := &s3manager.UploadInput{
-		Body:   reader,
-		Bucket: aws.String(bucket),
-		Key:    aws.String(key),
-	}
-	//获取一个根级上下文
-	ctx := context.Background()
-	var cancelFn func()
-	if uploadTmeout > 0 {
-		//设置一个timeout context
-		ctx, cancelFn = context.WithTimeout(ctx, uploadTmeout)
-		defer cancelFn()
-	}
-	//配置函数
-	optFun := func(u *s3manager.Uploader) {
-		u.PartSize = partLen // 分块大小,默认当文件体积超过100M开始进行分块上传
-		//u.LeavePartsOnError = true //如果上传失败不要删除分片
-		u.Concurrency = concurrency //并发数
-	}
-
-	result, err := uploader.UploadWithContext(ctx, input, optFun)
-
-	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok && aerr.Code() == request.CanceledErrorCode {
-			//传文件超时
-			return nil, fmt.Errorf("upload canceled due to timeout, %v\n", err)
-		} else {
-			return nil, fmt.Errorf("failed to upload object,code:%s %v\n", aerr.Code(), err)
-		}
-	}
-	return result, err
-}
-
-func putObject(reader io.ReadSeeker, bucket, key string, s3cli *s3.S3) (*s3.PutObjectOutput, error) {
-	//获取一个根级上下文
-	ctx := context.Background()
-	var cancelFn func()
-	if uploadTmeout > 0 {
-		//设置一个timeout context
-		ctx, cancelFn = context.WithTimeout(ctx, uploadTmeout)
-		defer cancelFn()
-	}
-	result, err := s3cli.PutObjectWithContext(ctx, &s3.PutObjectInput{
-		Body:   reader,
-		Bucket: aws.String(bucket),
-		Key:    aws.String(key),
-	})
-	return result, err
-}
-
-//获取put的参数
-func getPutOp(args []string) (bucket, objPrefix string, files []string) {
-	argsLen := len(args)
-	if argsLen < 2 {
-		ExitWithError(ExitBadArgs, fmt.Errorf("put command needs 2 argument. example: put FILE [FILE...] oss://BUCKET[/PREFIX].\n"))
-	}
-	for i, p := range args {
-		if strings.HasPrefix(p, "oss://") {
-			if i == 0 {
-				ExitWithError(ExitBadArgs, fmt.Errorf("parameter error. example: put FILE [FILE...] oss://BUCKET[/PREFIX].\n"))
-			}
-			idx := strings.Index(p[6:], "/")
-			if idx == -1 {
-				bucket = p[6:]
-				objPrefix = ""
-			} else {
-				bucket = p[6 : 6+idx]
-				objPrefix = p[7+idx:]
-				if !strings.HasSuffix(objPrefix, "/") {
-					objPrefix += "/"
-				}
-			}
-			break
-		} else {
-			//最后一个必需是oss://
-			if i == argsLen-1 {
-				ExitWithError(ExitBadArgs, fmt.Errorf("parameter error. example: put FILE [FILE...] oss://BUCKET[/PREFIX].\n"))
-			}
-			//滤重
-			for i--; i >= 0; i-- {
-				if files[i] == p {
-					ExitWithError(ExitBadArgs, fmt.Errorf("dir or file repetition. %s\n", p))
-				}
-			}
-			if p == "" {
-				continue
-			}
-			files = append(files, strings.Replace(p, "\\", "/", -1))
-		}
-	}
-	return
+	// fmt.Println("文件全部写入成功: ", files)
 }

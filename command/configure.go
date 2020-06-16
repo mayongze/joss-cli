@@ -19,6 +19,10 @@ var (
 	account Account
 )
 
+func init() {
+	RootCmd.AddCommand(NewAccountCommand())
+}
+
 func (acc *Account) ToJson() (jsonStr string, err error) {
 	jsonData, mErr := json.Marshal(acc)
 	if mErr != nil {
@@ -66,8 +70,8 @@ func GetAcount() (account Account, err error) {
 	//获取失败从环境变量获取
 	defer func() {
 		if err != nil {
-			account.AccessKey = os.Getenv("ACCESSKEY")
-			account.SecretKey = os.Getenv("SECRETKEY")
+			account.AccessKey = os.Getenv("JOSS_ACCESSKEY")
+			account.SecretKey = os.Getenv("JOSS_SECRETKEY")
 			if account.AccessKey == "" || account.SecretKey == "" {
 				err = fmt.Errorf("key not found")
 			} else {
@@ -103,7 +107,7 @@ func GetAcount() (account Account, err error) {
 func SetAccount(accessKey, secretKey string) (err error) {
 
 	if accessKey == "" || secretKey == "" {
-		fmt.Errorf("accesskey secretkey cannot be empty.")
+		err = fmt.Errorf("accesskey secretkey cannot be empty.")
 	}
 
 	//获取用户路径

@@ -11,6 +11,3 @@ install:
 
 clean:
 	@rm -f bin/*
-
-dep:
-	@dep ensure

@@ -11,6 +11,10 @@ var (
 	GitSHA = ""
 )
 
+func init() {
+	RootCmd.AddCommand(NewVersionCommand())
+}
+
 func NewVersionCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",

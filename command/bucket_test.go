@@ -5,15 +5,23 @@ import (
 	"testing"
 )
 
-func TestNewBucketObjectListCommand(t *testing.T) {
+func executeCmd(args ...string) string {
 	output := new(bytes.Buffer)
+	RootCmd.SetArgs(args)
+	RootCmd.SetOut(output)
+	_ = RootCmd.Execute()
+	return output.String()
+}
 
-	testCmd.SetArgs([]string{"ls", "oss://joss-test", "-l"})
-	testCmd.SetOutput(output)
-	testCmd.AddCommand(NewBucketObjectListCommand())
-
-	if err := testCmd.Execute(); err != nil {
-		t.Error("Unexpected error:", err)
-	}
+func TestNewBucketListCommand(t *testing.T) {
+	output := new(bytes.Buffer)
+	RootCmd.SetArgs([]string{"bucket", "ll"})
+	RootCmd.SetOut(output)
+	_ = RootCmd.Execute()
 	t.Log(output.String())
+}
+
+func TestNewBucketAddCommand(t *testing.T) {
+	t.Log(executeCmd("bucket", "add", "josstest"))
+	t.Log(executeCmd("bucket", "remove", "josstest"))
 }
