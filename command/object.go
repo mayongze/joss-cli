@@ -166,7 +166,7 @@ func objectPutCommandFunc(cmd *cobra.Command, args []string) {
 			speedHuman := ByteCountBinary(speed)
 			preConsumed = consumedBytes
 			// 589588 of 589588   100% in    0s     2.01 MB/s  done
-			fmt.Printf("\r%9d of %9d\t%3.2f%% in\t%s\t%9s/s%s",
+			fmt.Printf("\r%9d of %d\t%3.2f%% in\t%s\t%9s/s%s",
 				consumedBytes, totalBytes, float32(consumedBytes*100)/float32(totalBytes),
 				((now.Sub(start) / time.Second) * time.Second).String(), speedHuman, done)
 		})); err != nil {
