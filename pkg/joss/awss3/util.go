@@ -50,7 +50,7 @@ func (r *CustomReader) Seek(offset int64, whence int) (int64, error) {
 
 func (r *CustomReader) publishLoop() {
 	// r.progressFn(r.totalBytes, r.consumedBytes)
-	for _ = range r.progressTick.C {
+	for range r.progressTick.C {
 		r.progressFn(r.totalBytes, r.consumedBytes)
 	}
 }

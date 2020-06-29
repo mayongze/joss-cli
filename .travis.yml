@@ -20,7 +20,7 @@ os:
 
 # go版本
 go:
-  - 1.13.3
+  - 1.13.4
   - tip
 
 # 环境变量
@@ -30,23 +30,25 @@ env:
     - TARGET=linux-amd64-unit
 
 stages:
+  - test
   - name: deploy
 
 jobs:   # 别名是matrix
   fast_finish: true
   include:  # 包含job
     - stage: deploy
-      go: 1.13.3
+      go: 1.13.4
       env: TARGET=deploy
       deploy:
         provider: releases
         api_key:
-          secure: W9vulowfByyHUlNTThDgNPxb2OZ/1kQH9MIH8zcRHybCcO5/KOJxwr6YEOGNbYQCBxp9Ij6PcGZZ0RETAioHQwMsI4jY4Gz0nTtSBCNCl+6dW/MD1H6jqsnBhY5y6hRhavhU4bj5pxBoJFh4oOjamnU6gIjQkKLazduDrhL3LYLY5fhGLLdOdFlLXpqHDYgPWiJ0rqg2++y2WY3rwSOboxNe1qYPCn+oTXYftuKHlh26cqCd4AgYkdMTUdeYVnIRzX8xR2AWJnCNlM/RGoYRRBr5Rd7stfnoAa1JT/U2HsOSR5Mdgu5pR2gpyKcE8Gt42K9uF7sah8D8V56YFQ1EqWPCTiAoVmo7Z6LR5xYwS7Xm1Afx3EEwzwKEQ4THLG6kpb43z9umGwQHpBEAoSvt2MtxlVGUZhDe4Uwzt74f1aemK+mdo1S7wR9zC0PFg/2sCpLxmsXQq2KnyySjfZZSmyB7U5Bf5ikQwbk2ED9fdvIemIMCacUi/WAwfcZ4YS/i2l+bTnW07V/kNXaFfcnndIwh9UhJXrscqbDXaZdxwJ2b8m8xW50+KqQp0b8v/Ekc61nG0KS6ax53FTR6PvaSva/nUn2ZTUDyKv9B9zGC7ilPT/7LRjgFkOXcLbXSc36oE005BWFQOuPg9u7veafsCXA+j58zBG1BXTGGCbKh1Jw=
-        file: '"*.tar.gz"'
-        skip_cleanup: true  # 跳过清理
-        draft: true # 设置为draft 手动发布
+          secure: lyyU1fqGWQilPAMt2ZkdrJ0eTEQxgBGhp8OtLVDK6aaRdnAhEgBd0HN1Bli5fUbwjQs98lIAfUa8ojUd95peww9Hq+Rl6jrzEibXIsWJ1Awo1OYgX1ge5WcvN+dTZ5y/V8f3neh3PGkU0wKzcE6LP+YTZz8XTT89LUPvYXAnax+Gw6kPHxdNOSKmOpNt9hp7QPRZTE3cXmnj5ib7kG7u7GIzYBfmne5RQXOAXyCI6JhwyXqvyEmeq2AG3mrHQVSf8515rj3evPpF7AcgzkIp+1Z8sfHiinixw32x/Jy0gjXyTEeNZPExrdZZbY4sysnvYV8F90DRbxAz6kEC0GyKeNnn+SCU3+mFRj2sngc4ehoFiEGUvBhI85jn7/PJ+CwyhmzoxpXHpLLOiq9rVpleVrgKj6vyciCShp6uAsL8bNl5TrkoAud/m9d402A4xJrNAw++cWWdVamq08XoVVI3SiIo64v4+f5mzV7sxcRLwN0l4eh/8mpeR2LXdHNQKGDuQOjruzRyzfgsIIwOVFFJ2to9jFpncd1voSE9sgkyzqPO9C0OfYN5oZJPNrUylDUMIIJxUbuIx7Lj7/74sk3S90RkO4ezBR+cmTsBPznrdfEuiStSz9ddTW7rVtf7Qyxy8bE/KvPuNYuqdyw6NOYFB9u4y/CyAQ4mTSKDu0ORCvc=
+        file_glob: true
+        file: output/*.tar.gz
+        skip_cleanup: true
+        draft: true
         on:
-          tags: true # 只有当构建
+          tags: true
           repo: mayongze/joss-cli
 
 before_install:
@@ -73,14 +75,14 @@ script:
   - |
     case "${TARGET}" in
       linux-amd64-unit)
-        fmtRes=$(gofmt -l -s -d .)
+        fmtRes=$(gofmt -l -s -d `find . -type f -name '*.go'| grep -v "/vendor/"`)
         if [ -n "${fmtRes}" ]; then
           echo -e "gofmt checking failed:\\n${fmtRes}"
           return 255
         fi
       ;;
       deploy)
-        GO_BUILD_FLAGS='-v -mod=mod' ./cross-build.sh
+        GO_BUILD_FLAGS='-v' ./cross-build.sh
       ;;
     esac
 after_failure:
