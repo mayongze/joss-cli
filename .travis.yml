@@ -1,0 +1,106 @@
+# 使用 root权限
+language: go
+# 排除untagged分支的构建
+branches:
+  except:
+    - /^untagged/
+services:
+  - docker
+
+# go build参数
+gobuild_args: -x -ldflags "-X command.GitSHA=$(git rev-parse --short HEAD || echo "GitNotFound")"
+
+# 运行架构
+arch:
+  - amd64
+
+# 执行系统
+os:
+  - linux
+
+# go版本
+go:
+  - 1.13.3
+  - tip
+
+# 环境变量
+env:
+  global:
+    - GO111MODULE=on
+    - TARGET=linux-amd64-unit
+
+stages:
+  - name: deploy
+
+jobs:   # 别名是matrix
+  fast_finish: true
+  include:  # 包含job
+    - stage: deploy
+      go: 1.13.3
+      env: TARGET=deploy
+      deploy:
+        provider: releases
+        api_key:
+          secure: W9vulowfByyHUlNTThDgNPxb2OZ/1kQH9MIH8zcRHybCcO5/KOJxwr6YEOGNbYQCBxp9Ij6PcGZZ0RETAioHQwMsI4jY4Gz0nTtSBCNCl+6dW/MD1H6jqsnBhY5y6hRhavhU4bj5pxBoJFh4oOjamnU6gIjQkKLazduDrhL3LYLY5fhGLLdOdFlLXpqHDYgPWiJ0rqg2++y2WY3rwSOboxNe1qYPCn+oTXYftuKHlh26cqCd4AgYkdMTUdeYVnIRzX8xR2AWJnCNlM/RGoYRRBr5Rd7stfnoAa1JT/U2HsOSR5Mdgu5pR2gpyKcE8Gt42K9uF7sah8D8V56YFQ1EqWPCTiAoVmo7Z6LR5xYwS7Xm1Afx3EEwzwKEQ4THLG6kpb43z9umGwQHpBEAoSvt2MtxlVGUZhDe4Uwzt74f1aemK+mdo1S7wR9zC0PFg/2sCpLxmsXQq2KnyySjfZZSmyB7U5Bf5ikQwbk2ED9fdvIemIMCacUi/WAwfcZ4YS/i2l+bTnW07V/kNXaFfcnndIwh9UhJXrscqbDXaZdxwJ2b8m8xW50+KqQp0b8v/Ekc61nG0KS6ax53FTR6PvaSva/nUn2ZTUDyKv9B9zGC7ilPT/7LRjgFkOXcLbXSc36oE005BWFQOuPg9u7veafsCXA+j58zBG1BXTGGCbKh1Jw=
+        file: '"*.tar.gz"'
+        skip_cleanup: true  # 跳过清理
+        draft: true # 设置为draft 手动发布
+        on:
+          tags: true # 只有当构建
+          repo: mayongze/joss-cli
+
+before_install:
+  - echo "有非0退出码会立即停止运行"
+  - echo "env ${DB} ${SH} ${VERSION}"
+  - if [[ $TRAVIS_GO_VERSION == 1.* ]]; then echo ${TRAVIS_GO_VERSION}; fi
+
+install:
+  - echo "有非0退出码会立即停止运行"
+  - echo "当目录中存在 GNUMakefile Makefile BSDmakefile makefile时不会执行默认操作"
+  - echo "install有对go来说有默认值 go get -t -v ./... go get ${gobuild_args} ./..."
+  - go get -t -v -d ./...
+
+before_script:
+  - echo "有非0退出吗会立即停止运行"
+  - echo "before script"
+
+script:
+  - echo "TRAVIS_GO_VERSION=${TRAVIS_GO_VERSION}"
+  - echo "不使用-mod=vendor就不会使用vendor目录缓存依赖，而去重新下载"
+  - echo "如果存在Makefile 默认命令是make"
+  - echo "如果command存在非0退出码不会中断执行,但是最终结果会是失败的"
+  - echo "script 对go的默认值是 go test -v ./... go test ${gobuild_args} ./..."
+  - |
+    case "${TARGET}" in
+      linux-amd64-unit)
+        fmtRes=$(gofmt -l -s -d .)
+        if [ -n "${fmtRes}" ]; then
+          echo -e "gofmt checking failed:\\n${fmtRes}"
+          return 255
+        fi
+      ;;
+      deploy)
+        GO_BUILD_FLAGS='-v -mod=mod' ./cross-build.sh
+      ;;
+    esac
+after_failure:
+  - echo "script 阶段失败时执行"
+
+after_success:
+  - echo "script 阶段成功时执行"
+
+before_deploy:
+  - echo "[OPTIONAL] deploy 步骤之前执行"
+
+after_deploy:
+  - echo "[OPTIONAL] deploy 步骤之后执行"
+
+after_script:
+  - echo "script 阶段之后执行,最后执行"
+
+notifications:
+  email:
+    recipients:
+      - 1014057907@qq.com
+    on_success: always
+    on_failure: always
