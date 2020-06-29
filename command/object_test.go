@@ -18,7 +18,7 @@ func TestNewBucketObjectListCommand(t *testing.T) {
 
 func TestNewObjectPutCommand(t *testing.T) {
 	output := new(bytes.Buffer)
-	RootCmd.SetArgs([]string{"put", "../case", "oss://jcloud-opmid/josstest/", "-rf"})
+	RootCmd.SetArgs([]string{"put", "../case", "oss://jcloud-opmid/josstest", "-rf"})
 	RootCmd.SetOut(output)
 	RootCmd.AddCommand(NewObjectPutCommand())
 	if err := RootCmd.Execute(); err != nil {

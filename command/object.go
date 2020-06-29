@@ -122,7 +122,7 @@ func objectPutCommandFunc(cmd *cobra.Command, args []string) {
 	if err != nil {
 		ExitWithError(ExitError, err)
 	}
-	// 判断key是否存在
+	// 判断key是否存在,只判断第一个
 	if !Force {
 		f := filesObj[0]
 		p := ""
@@ -137,13 +137,14 @@ func objectPutCommandFunc(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	p := fmt.Sprint(bucket, "/", objPrefix)
+	pSuffix := fmt.Sprint(bucket, "/", objPrefix)
 	for i, v := range filesObj {
+		var p = ""
 		// 有/则加文件名 或者没/但是是有递归参数
-		if strings.HasSuffix(p, "/") {
-			p = fmt.Sprint(p, v.Key)
+		if strings.HasSuffix(pSuffix, "/") {
+			p = fmt.Sprint(pSuffix, v.Key)
 		} else if Recursive {
-			p = fmt.Sprint(p, "/", v.Key)
+			p = fmt.Sprint(pSuffix, "/", v.Key)
 		}
 		fmt.Printf("upload: '%s' -> 'oss://%s'  [%d of %d]\n", v.Key, p, i+1, len(filesObj))
 		// 处理进度条
@@ -165,7 +166,7 @@ func objectPutCommandFunc(cmd *cobra.Command, args []string) {
 			speedHuman := ByteCountBinary(speed)
 			preConsumed = consumedBytes
 			// 589588 of 589588   100% in    0s     2.01 MB/s  done
-			fmt.Printf("\r%9d of %d\t%.2f%% in\t%s\t%s/s%s",
+			fmt.Printf("\r%9d of %9d\t%3.2f%% in\t%s\t%9s/s%s",
 				consumedBytes, totalBytes, float32(consumedBytes*100)/float32(totalBytes),
 				((now.Sub(start) / time.Second) * time.Second).String(), speedHuman, done)
 		})); err != nil {

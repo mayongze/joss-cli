@@ -82,7 +82,7 @@ func getPutOp(args []string) (bucket, objPrefix string, files []string) {
 				objPrefix = p[7+idx:]
 
 				// 判断后面没/且拓展类型不同的情况下才加/
-				if !strings.HasSuffix(objPrefix, "/") {
+				if !strings.HasSuffix(objPrefix, "/") && objPrefix != "" {
 					if len(files) > 1 || filepath.Ext(objPrefix) == "" {
 						objPrefix += "/"
 					} else if stat, err := os.Stat(files[0]); err == nil && stat.IsDir() {
