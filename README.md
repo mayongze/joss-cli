@@ -1,5 +1,7 @@
 ## joss - 一款针对aws s3对象存储接口的命令行操作工具
 
+[![Build Status](https://travis-ci.com/mayongze/joss-cli.svg?branch=master)](https://travis-ci.com/mayongze/joss-cli)
+
 使用golang编写的对象存储命令行操作工具.
 
 
