@@ -1,9 +1,8 @@
 ## joss - 一款针对aws s3对象存储接口的命令行操作工具
 
-[![Build Status](https://travis-ci.com/mayongze/joss-cli.svg?branch=master)](https://travis-ci.com/mayongze/joss-cli)
+[![Build Status](https://travis-ci.com/mayongze/joss-cli.svg?branch=master)](https://travis-ci.com/mayongze/joss-cli) [![Releases](https://img.shields.io/github/release/mayongze/joss-cli/all.svg?style=flat-square)](https://github.com/mayongze/joss-cli/releases) [![LICENSE](https://img.shields.io/github/license/mayongze/joss-cli.svg?style=flat-square)](https://github.com/mayongze/joss-cli/blob/master/LICENSE)
 
 使用golang编写的对象存储命令行操作工具.
-
 
 ## 安装
 
@@ -50,8 +49,6 @@ $ cd bin
 # OK
 ```
 
-
-
 #### ls  \<oss://BUCKET[/PREFIX]>  [options]
 
 显示对象信息.如没有指定前缀信息默认输出bucket列表
@@ -74,7 +71,25 @@ $ cd bin
 #bucket1   34 2018-09-19 00:00 file3
 ```
 
+#### ll  \<oss://BUCKET[/PREFIX]>  [options]
+`ls -l` 的alias,以列的形式显示详细信息
 
+##### Options
+
+- --max-keys    最大可输出的key数目
+
+##### Examples
+
+```bash
+./joss ll
+#bucket1
+#bucket2
+#bucket3
+./joss ll oss://bucket1/joss
+#bucket1 1234 2018-09-19 00:00 file1
+#bucket1    4 2018-09-19 00:00 file2
+#bucket1   34 2018-09-19 00:00 file3
+```
 
 #### put  \<FILE [FILE...] oss://BUCKET[/PREFIX]>  [options]
 
