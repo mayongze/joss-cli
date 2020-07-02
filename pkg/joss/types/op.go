@@ -19,15 +19,6 @@ type Op struct {
 type ProgressFn func(totalBytes int64, consumedBytes int64)
 type OpOption func(*Op)
 
-//func GetProgressFn(opts []OpOption) ProgressFn {
-//	op := &Op{}
-//	op.ApplyOpts(opts)
-//	if op.ProgressFn == nil {
-//		op.ProgressFn = func(totalBytes int64, consumedBytes int64) {}
-//	}
-//	return op.ProgressFn
-//}
-
 func (op *Op) ApplyOpts(opts []OpOption) {
 	for _, opt := range opts {
 		opt(op)
@@ -46,6 +37,13 @@ func WithProgress(fn ProgressFn) OpOption {
 
 func WithMaxKeys(maxkeys int64) OpOption {
 	return func(op *Op) { op.MaxKeys = maxkeys }
+}
+
+// 分片大小单位字节,最低5mb
+func WithPartSize(partSize int64) OpOption {
+	return func(op *Op) {
+		op.PartSize = partSize
+	}
 }
 
 func WithThreadCount(count int) OpOption {

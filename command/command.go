@@ -44,11 +44,11 @@ func init() {
 	cobra.EnablePrefixMatching = true
 	cobra.OnInitialize(initConfig)
 
+	RootCmd.PersistentFlags().StringVar(&AccessKey, "accessKey", "", "jcloud accessKey")
+	RootCmd.PersistentFlags().StringVar(&SecretKey, "secretKey", "", "jcloud accessKey")
 	RootCmd.PersistentFlags().BoolVarP(&DebugFlag, "debug", "d", false, "debug mode")
 	RootCmd.PersistentFlags().StringVar(&Endpoint, "endpoint", "", "oss endpoint")
 	RootCmd.PersistentFlags().StringVarP(&OssType, "oss-type", "t", "jd", "enable client-side debug logging")
-	RootCmd.PersistentFlags().StringVar(&AccessKey, "accessKey", "", "jcloud accessKey")
-	RootCmd.PersistentFlags().StringVar(&SecretKey, "secretKey", "", "jcloud accessKey")
 	RootCmd.PersistentFlags().StringVar(&Region, "region", "cn-north-1", "region")
 	RootCmd.PersistentFlags().BoolVar(&Internal, "internal", false, "is internal")
 

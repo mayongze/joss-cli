@@ -119,7 +119,6 @@ func (b *BucketMgr) PutObject(objectKey string, reader io.Reader, options ...typ
 			Body:     b.setupProgress(reader),
 			Metadata: b.Metadata,
 		}, optFun)
-	_ = resp.Location
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok && aerr.Code() == request.CanceledErrorCode {
 			//传文件超时
@@ -128,6 +127,7 @@ func (b *BucketMgr) PutObject(objectKey string, reader io.Reader, options ...typ
 			return fmt.Errorf("failed to upload object,code:%s %v\n", aerr.Code(), err)
 		}
 	}
+	_ = resp.Location
 	return nil
 }
 

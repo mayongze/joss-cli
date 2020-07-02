@@ -112,9 +112,12 @@ func ossListCommandFunc(cmd *cobra.Command, args []string) {
 }
 
 func objectPutCommandFunc(cmd *cobra.Command, args []string) {
+	// 参数验证, 分片大小默认50 sdk默认5
+	if partSize < 5 {
+		partSize = 5
+	}
 	//解析参数
 	bucket, objPrefix, files := getPutOp(args)
-
 	// 批量上传进度条咋搞
 	jcli := joss.New(Endpoint, AccessKey, SecretKey, JossType)
 	// 	// 文件递归 -r
@@ -166,10 +169,10 @@ func objectPutCommandFunc(cmd *cobra.Command, args []string) {
 			speedHuman := ByteCountBinary(speed)
 			preConsumed = consumedBytes
 			// 589588 of 589588   100% in    0s     2.01 MB/s  done
-			fmt.Printf("\r%9d of %d\t%3.2f%% in\t%s\t%9s/s%s",
+			fmt.Printf("\r%13d of %d\t%3.2f%% in\t%s\t%9s/s%s",
 				consumedBytes, totalBytes, float32(consumedBytes*100)/float32(totalBytes),
 				((now.Sub(start) / time.Second) * time.Second).String(), speedHuman, done)
-		})); err != nil {
+		}), types.WithPartSize(partSize*1024*1024)); err != nil {
 			ExitWithError(ExitError, err)
 		}
 	}

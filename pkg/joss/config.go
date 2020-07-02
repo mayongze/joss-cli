@@ -52,7 +52,13 @@ func initS3Client(accessKey, secretKey, endpoint string, forcePath bool) (*s3.S3
 	if !strings.HasPrefix(endpoint, "http://") {
 		endpoint = "http://" + endpoint
 	}
-	creds := credentials.NewStaticCredentials(accessKey, secretKey, "")
+
+	var creds *credentials.Credentials
+	if accessKey == "" {
+		creds = credentials.AnonymousCredentials
+	} else {
+		creds = credentials.NewStaticCredentials(accessKey, secretKey, "")
+	}
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		Config: aws.Config{
 			Endpoint:         aws.String(endpoint),
