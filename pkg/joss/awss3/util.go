@@ -27,13 +27,13 @@ type CustomReader struct {
 
 func NewCustomReader(readerAtSeeker readerAtSeeker, progressFn types.ProgressFn) *CustomReader {
 	n, _ := readerAtSeeker.Seek(0, io.SeekEnd)
-	_, _ = readerAtSeeker.Seek(io.SeekCurrent, io.SeekStart)
+	_, _ = readerAtSeeker.Seek(0, io.SeekStart)
 	if progressFn == nil {
 		progressFn = func(totalBytes int64, consumedBytes int64) {}
 	}
 	return &CustomReader{
 		readerAtSeeker: readerAtSeeker,
-		consumedBytes:  1,
+		consumedBytes:  0,
 		totalBytes:     n,
 		progressFn:     progressFn,
 		offMap:         map[int64]struct{}{},
@@ -58,9 +58,6 @@ func (r *CustomReader) publishLoop() {
 func (r *CustomReader) ReadAt(p []byte, off int64) (int, error) {
 	// 会调用2次因为会预先计算一次md5, 然后在上传 10485760 32768 15728640 20971520 10518528 65536 10551296 98304 10584064
 	n, err := r.readerAtSeeker.ReadAt(p, off)
-	if off == 0 {
-		_ = n
-	}
 	if err != nil {
 		return n, err
 	}
