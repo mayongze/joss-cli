@@ -24,5 +24,9 @@ func NewVersionCommand() *cobra.Command {
 }
 
 func versionCommandFunc(cmd *cobra.Command, args []string) {
-	fmt.Printf("joss-cli version:%s sha:%s\n", Version, GitSHA)
+	fmt.Println(version())
+}
+
+func version() string {
+	return fmt.Sprintf("version: %s \nsha: %s\n", Version, GitSHA)
 }

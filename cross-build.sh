@@ -3,11 +3,13 @@
 set -x
 
 GIT_SHA=$(git rev-parse --short HEAD || echo "GitNotFound")
+VERSION=$(git describe --tags || echo "VersionNotFound")
+
 if [[ -n "$FAILPOINTS" ]]; then
 	GIT_SHA="$GIT_SHA"-FAILPOINTS
 fi
 
-GO_LDFLAGS="$GO_LDFLAGS -X main.GitSHA=${GIT_SHA}"
+GO_LDFLAGS="$GO_LDFLAGS -X github.com/mayongze/joss-cli/command.GitSHA=${GIT_SHA} -X github.com/mayongze/joss-cli/command.Version=${VERSION}"
 
 OUTPUT=output
 if [[ -n "${BINDIR}" ]]; then OUTPUT="${BINDIR}"; fi
