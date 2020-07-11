@@ -2,6 +2,10 @@ package awss3
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha1"
+	"encoding/base64"
+	"errors"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -11,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/mayongze/joss-cli/pkg/joss/types"
 	"io"
+	"net/url"
 	"time"
 )
 
@@ -184,6 +189,39 @@ func (b *BucketMgr) DeleteObjects(objectKeys []string, options ...types.OpOption
 		result.Keys = append(result.Keys, *v.Key)
 	}
 	return
+}
+
+func (b *BucketMgr) GetObjectSignUrl(objectKey string, expire time.Duration, options ...types.OpOption) (result string, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5)*time.Second)
+	defer cancel()
+	b.Op.ApplyOpts(options)
+	// 先判断key是否存在
+	req, _ := b.HeadObjectRequest(&s3.HeadObjectInput{
+		Bucket: aws.String(b.bucketName),
+		Key:    aws.String(objectKey),
+	})
+	req.SetContext(ctx)
+	if err = req.Send(); err != nil {
+		var awsErr awserr.RequestFailure
+		if errors.As(err, &awsErr) && awsErr.StatusCode() == 404 {
+			return "", errors.New("目标文件不存在")
+		}
+		return "", err
+	}
+	credValue, err := b.Config.Credentials.Get()
+	if err != nil {
+		return "", err
+	}
+	hostBase := req.HTTPRequest.URL.Host
+	expireTime := time.Now().Add(expire).Unix()
+	proto := "https" //https
+	signtext := fmt.Sprintf("GET\n\n\n%d\n/%s/%s", expireTime, b.bucketName, objectKey)
+	hash := hmac.New(sha1.New, []byte(credValue.SecretAccessKey))
+	hash.Write([]byte(signtext))
+	signature := url.QueryEscape(base64.StdEncoding.EncodeToString(hash.Sum(nil)))
+	signUrl := fmt.Sprintf("%s://%s/%s?AWSAccessKeyId=%s&Expires=%d&Signature=%s", proto,
+		hostBase, objectKey, credValue.AccessKeyID, expireTime, signature)
+	return signUrl, err
 }
 
 func (b *BucketMgr) ListObject(prefix string, options ...types.OpOption) (result types.ListObjectResp, err error) {

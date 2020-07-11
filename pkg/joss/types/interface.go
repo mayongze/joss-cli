@@ -18,6 +18,8 @@ type BucketMgrInterface interface {
 	DeleteObjects(objectKeys []string, options ...OpOption) (DeleteObjectResp, error)
 	// 数量
 	ListObject(keyPrefix string, options ...OpOption) (ListObjectResp, error)
+	// get sign url
+	GetObjectSignUrl(key string, expire time.Duration, options ...OpOption) (string, error)
 }
 
 type (

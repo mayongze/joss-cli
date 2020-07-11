@@ -14,11 +14,7 @@ func executeCmd(args ...string) string {
 }
 
 func TestNewBucketListCommand(t *testing.T) {
-	output := new(bytes.Buffer)
-	RootCmd.SetArgs([]string{"bucket", "ll"})
-	RootCmd.SetOut(output)
-	_ = RootCmd.Execute()
-	t.Log(output.String())
+	t.Log(executeCmd("bucket", "ll"))
 }
 
 func TestNewBucketAddCommand(t *testing.T) {
