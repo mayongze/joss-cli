@@ -20,7 +20,7 @@ os:
 
 # go版本
 go:
-  - 1.13.4
+  - 1.14.6
   - tip
 
 # 环境变量
@@ -37,7 +37,7 @@ jobs:   # 别名是matrix
   fast_finish: true
   include:  # 包含job
     - stage: deploy
-      go: 1.13.4
+      go: 1.14.6
       env: TARGET=deploy
       deploy:
         provider: releases
